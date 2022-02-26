@@ -1,104 +1,92 @@
-from PIL import Image, ImageFont, ImageDraw
-import json
-import math
 import argparse
+import gettext
 import sys
+import tkinter as tk
 
+from pathlib import Path
 
-def text_wrap(text, font, max_widthidth):
-    lines = []
-    if font.getsize(text)[0] <= max_widthidth:
-        lines.append(text)
-    else:
-        words = text.split(' ')
-        i = 0
-        while i < len(words):
-            line = ''
-            while i < len(words) and font.getsize(line + words[i])[0] <= max_widthidth:
-                line = line + words[i] + " "
-                i += 1
-            if not line:
-                line = words[i]
-                i += 1
-            lines.append(line)
-    return lines
+import core
+import ui
 
+_ = gettext.gettext
+defaults = core.load_default()
 
 # Read/Interpret Input
 parser = argparse.ArgumentParser(
-    description='Gerar imagens com versicleículos para o culto')
-parser.add_argument("reference",
-    action="store", help="Abreviação da referência do texto. Ex: 1Ts_1_1-3")
-parser.add_argument("--versicleion",
-	dest="versicleion", action="store", default="nvi", help="versicleão da Biblia a ser usada. Disponíveis: AA, ACF, NVI. Default: NVI")
+    description=_("Generate versicle images"),
+    formatter_class=argparse.RawTextHelpFormatter,
+    epilog=_("\t- If you wish to change default configurations, please edit {}\n \
+    \t- Add extra bible versions in {}\n \
+    \t- Add extra fonts in {}")
+    .format(str(Path(core.home_path) / "default.json"), str(Path(core.home_path) / "versions"), str(Path(core.home_path) / "fonts") ))
+parser.add_argument("reference", nargs='?',
+    action="store", help=_("Text reference abbreviation. Eg: 1Ts_1_1-33"))
+parser.add_argument("--version",
+	dest="version", action="store", default=f'{defaults["version"].lower()}', help=_("Bible version to be used. Available (PT): AA, ACF, NVI. Default: {}").format(defaults["version"].upper()))
 parser.add_argument("--output",
-    dest="output", action="store", default=".", help="Seleciona caminho de saída. Default: .")
+    dest="output", action="store", default=".", help=_("Select output path. Default: ."))
+parser.add_argument("--gui", 
+    action="store_true", help=_("Start GUI version"))
+parser.add_argument("--preview", 
+    action="store_true", help=_("View image preview with style applied to dummy text"))
+parser.add_argument("--list-versions", 
+    dest="list_versions", action="store_true", help=_("List available bible versions"))
+parser.add_argument("--background", 
+    action="store", default=f'{defaults["background"]}', help=_("Select background image to use. Size must be 1920x1080"))
+parser.add_argument("--title-font", 
+    action="store", dest="title_font", default=defaults["fonts"]["title"], help=_("Font that will be used in the title (reference)"))
+parser.add_argument("--title-size", 
+    action="store", dest="title_size", default=defaults["fonts"]["title_size"], help=_("Title size"))
+parser.add_argument("--text-font", 
+    action="store", dest="text_font", default=defaults["fonts"]["text"], help=_("Font that will be used in the text"))
+parser.add_argument("--text-size", 
+    action="store", dest="text_size", default=defaults["fonts"]["text_size"], help=_("Text size"))
+parser.add_argument("--save-default", 
+    action="store_true", dest="save_default", help=_("Save options to default file"))
 args = parser.parse_args()
 
-if (len(args.reference.split("_")) != 3):
-    print("Entrada de referência fora do padrão")
-    sys.exit()
+if args.gui is True:
+    root = tk.Tk()
+    ui.Application(root)
+    root.mainloop()
+    sys.exit(0)
 
-# Settings
-color = (255, 247, 213)
-min_width = 320
-max_width = 1600
-min_height = 210
-max_height = ref_height = 870
+if args.preview is True:
+    core.render_preview(
+        title_font=args.title_font,
+        title_size=args.title_size,
+        text_font=args.text_font,
+        text_size=args.text_size,
+        background=args.background
+    )
+    sys.exit(0)
 
-# Load Content
-scriptina = ImageFont.truetype("assets/fonts/SCRIPTIN.ttf", 70)
-bitter70 = ImageFont.truetype("assets/fonts/Bitter-Regular.ttf", 70)
-bitter50 = ImageFont.truetype("assets/fonts/Bitter-Regular.ttf", 50)
-with open("assets/versicleions/{}.json".format(args.versicleion.lower()), encoding='utf-8-sig') as file:
-    bible = json.load(file)
+if args.list_versions is True:
+    versions = [version.stem.upper() for version in Path(f"{core.install_path}/assets/versions").iterdir() if version.name.endswith(".json")]
+    if Path(f"{core.home_path}/versions").exists():
+        versions.extend([version.stem.upper() for version in Path(f"{core.home_path}/versions").iterdir() if version.name.endswith(".json")])
+    print(*versions)
+    sys.exit(0)
 
-# Prepare Text
-book_ab, chapter, versicle = args.reference.split("_")
-try:
-    book = next(book for book in bible if book["abbrev"] == book_ab.lower())
-except:
-    answer = input("Abreviatura inválida. Deseja ver a lista de abreviaturas? (s/N) ")
-    if (answer == "S" or answer == "s"):
-        for book in bible:
-            print("{}: {}".format(book["abbrev"], book["name"]))
-    sys.exit()
+if args.save_default is True:
+    core.save_default(defaults, background=args.background, version=args.version, title_font=args.title_font, title_size=args.title_size, text_font=args.text_font, text_size=args.text_size)
 
-# Render Text
-versicle = versicle.split("-")
-v_in = v_out = int(versicle[0])
-if (len(versicle) == 2):
-    v_out = int(versicle[1])
-for v in range(v_in, v_out + 1):
-    image = Image.open("assets/background.jpg")
-    ref_text = "{} {}:{}".format(book["name"], chapter, v)
-    versicle_text = book["chapters"][int(chapter) - 1][int(v) - 1]
-    image_w, image_h = image.size
-    image_editable = ImageDraw.Draw(image)
+if args.reference is None or (len(args.reference.split("_")) != 3):
+    print(_("Reference non existent or format is invalid"))
+    parser.print_help()
+    sys.exit(1)
 
-    # Reference
-    line_width = scriptina.getsize(ref_text)[0]
-    ref_x = math.floor((image_w - line_width) / 2)
-    image_editable.text((ref_x, ref_height), ref_text, color, font=scriptina, align="center")
+bible = core.load_bible(version=args.version)
+book, chapter, versicles = core.prepare_text(bible=bible, reference=args.reference)
 
-    # Versicle
-    bitter = bitter70
-    text_length = max_width - min_width
-    lines = text_wrap(versicle_text, bitter, text_length)
-    line_height = bitter.getsize("hg")[1]
-    versicle_height = (len(lines) * line_height)
-    if (versicle_height > max_height - min_height):
-        bitter = bitter50
-        lines = text_wrap(versicle_text, bitter, text_length)
-        line_height = bitter.getsize("hg")[1]
-        versicle_height = (len(lines) * line_height)
-    versicle_y_min = math.floor((image_h - versicle_height) / 2)
-    versicle_y = versicle_y_min
-    for line in lines:
-        line_width = bitter.getsize(line)[0]
-        versicle_x = math.floor((image_w - line_width) / 2)
-        image_editable.text((versicle_x, versicle_y), line, color, font=bitter, align="center")
-        versicle_y = versicle_y + line_height
-
-    # Export Image
-    image.save("{}/{}-{}-{}.jpg".format(args.output, book["abbrev"], chapter, v))
+core.render_text(
+    book=book,
+    chapter=chapter,
+    versicle=versicles,
+    title_font=args.title_font,
+    title_size=args.title_size,
+    text_font=args.text_font,
+    text_size=args.text_size,
+    output=args.output,
+    background=args.background
+)
