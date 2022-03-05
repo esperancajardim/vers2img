@@ -10,9 +10,11 @@ Use o seguinte formato para a referência, ambos iniciados com a abreviatura do 
 - \<livro\>\_\<capitulo\>\_\<versículo\> - Ex: gn\_1\_1
 - \<livro\>\_\<capítulo\>\_\<versículo\>-\<versículo\> - Versículos em sequência - Ex: rm\_1\_1\-8
 
-Opcões extras:
+Principais extras:
+- --gui: inicião aplicação em modo janela
 - --version: selecione a versão da bíblia a ser usada. Disponíveis: AA, ACF e NVI. Por padrão a NVI é selecionada.
 - --output: caminho onde deseja exportar as imagens
+- --help: use este para verificar todas as outras opções de uso
 
 ## Material
 - Versões da bíblia vem do projeto ["Bíblia XML + SQL + JSON"](https://github.com/thiagobodruk/biblia)
@@ -34,9 +36,11 @@ You need to use the following format for the reference, both started with the bo
 - \<book\>\_\<chapter\>\_\<verscile\> - Eg: gn\_1\_1
 - \<book\>\_\<chapter\>\_\<verscile\>-\<versicle\> - Range of versicles - Eg: rm\_1\_1\-8
 
-Extra options:
+Main options:
+- --gui: start GUI application
 - --version: select a bible version. You will need to download a bible version from the project mentioned below (This project was only released with version in portuguese).
 - --output: path to where you want the images exported
+- --help: use this to check other options available
 
 ## Material
 - You can get bible versions from ["Bible: XML and JSON"](https://github.com/thiagobodruk/bible)
