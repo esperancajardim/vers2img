@@ -2,3 +2,6 @@ __pycache__/
 *.py[cod]
 .vscode
 *.mo
+build/
+dist/
+*.spec
